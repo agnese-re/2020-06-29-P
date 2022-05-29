@@ -19,8 +19,14 @@ public class Model {
 	private Graph<Match,DefaultWeightedEdge> grafo;
 	private PremierLeagueDAO dao;
 	
+	private List<Match> soluzioneBest;
+	private int pesoMassimo;
+	
 	public Model() {
 		dao = new PremierLeagueDAO();
+		
+		soluzioneBest = new ArrayList<Match>();
+		pesoMassimo = 0;
 	}
 	
 	public void creaGrafo(Month mese, int minutiMinimi) {
@@ -57,6 +63,9 @@ public class Model {
 	
 	public List<CoppiaMatch> getConnessioneMax() {
 		
+		/* if(this.grafo == null)
+			throw new RuntimeException("Grafo non esistente"); */
+		
 		int pesoMax = 0;
 		List<CoppiaMatch> coppie = new ArrayList<CoppiaMatch>();
 		
@@ -71,5 +80,48 @@ public class Model {
 						this.grafo.getEdgeTarget(e), pesoMax));
 		
 		return coppie;
+	}
+	
+	public List<Match> calcolaPercorso(Match matchStart, Match matchEnd) {
+		List<Match> parziale = new ArrayList<Match>();
+		parziale.add(matchStart);	// vertice di partenza
+		ricorsione(parziale, matchEnd);
+		return soluzioneBest;
+	}
+	
+	private void ricorsione(List<Match> parziale, Match matchEnd) {
+		// casi terminali
+		if(parziale.get(parziale.size()-1).equals(matchEnd)) {	// destinazione raggiunta
+			int pesoParziale = calcolaPesoPercorso(parziale);
+			if(pesoParziale > pesoMassimo) {
+				pesoMassimo = pesoParziale;
+				soluzioneBest = parziale;
+			}
+		}
+		// algoritmo ricorsivo
+		for(Match vicino: Graphs.neighborListOf(this.grafo, parziale.get(parziale.size()-1))) 
+			if(!vicino.getTeamHomeNAME().equals(parziale.get(parziale.size()-1).getTeamHomeNAME()) ||
+					!vicino.getTeamAwayNAME().equals(parziale.get(parziale.size()-1).getTeamAwayNAME())) {
+			parziale.add(vicino);
+			ricorsione(parziale,matchEnd);
+			parziale.remove(parziale.size()-1);
+		}
+	
+	}
+	
+	public int calcolaPesoPercorso(List<Match> parziale) {
+		int pesoPercorso = 0;
+		
+		for(int indice = 0; indice < parziale.size()-1; indice++) {
+			Match matchP = parziale.get(indice);
+			Match matchA = parziale.get(indice+1);
+			/* I due vertici sono collegati da un unico arco, essendo il grafo semplice.
+			 	Il SimpleGraph elimina i self-loops e i multiple-edges */
+			DefaultWeightedEdge edge = this.grafo.getEdge(matchP, matchA);
+	
+			pesoPercorso += this.grafo.getEdgeWeight(edge);
+		}
+		
+		return pesoPercorso;
 	}
 }

@@ -24,7 +24,7 @@ public class FXMLController {
 
 	Model model;
 	
-	private boolean grafoCreato;
+	boolean grafoCreato = false;
 	
     @FXML // ResourceBundle that was given to the FXMLLoader
     private ResourceBundle resources;
@@ -59,17 +59,20 @@ public class FXMLController {
     @FXML
     void doConnessioneMassima(ActionEvent event) {
     	txtResult.clear();
-    	if(this.grafoCreato) {
+    	if(grafoCreato == true) {
 	    	List<CoppiaMatch> coppie = model.getConnessioneMax();
 	    	for(CoppiaMatch coppia: coppie)
 	    		txtResult.appendText(coppia.toString() + "\n");
-    	} else
+    	} else	// grafo non creato
     		txtResult.setText("Grafo inesistente! Cliccare prima su 'Crea grafo'");
     }
 
     @FXML
     void doCreaGrafo(ActionEvent event) {
     	txtResult.clear();
+    	this.cmbM1.getItems().clear();
+    	this.cmbM2.getItems().clear();
+    	
     	int minutiMinimi;
     	try {
     		minutiMinimi = Integer.parseInt(this.txtMinuti.getText());
@@ -102,7 +105,16 @@ public class FXMLController {
 
     @FXML
     void doCollegamento(ActionEvent event) {
-    	
+    	txtResult.clear();
+    	if(this.cmbM1.getValue() != null && this.cmbM2.getValue() != null) {
+    		if(!this.cmbM1.getValue().equals(this.cmbM2.getValue())) {
+    		List<Match> percorso = model.calcolaPercorso(cmbM1.getValue(), cmbM2.getValue());
+    		for(Match match: percorso)
+    			txtResult.appendText(match.toString() + "\n");
+    		} else
+    			txtResult.setText("m1 e m2 devono essere diversi!");
+    	} else
+    		txtResult.appendText("Devi selezionare un match di inizio (m1) e uno di fine (m2)");
     }
 
     @FXML // This method is called by the FXMLLoader when initialization is complete
