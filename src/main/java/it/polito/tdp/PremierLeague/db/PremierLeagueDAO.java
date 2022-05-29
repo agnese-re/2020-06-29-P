@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.List;
 import it.polito.tdp.PremierLeague.model.Action;
@@ -89,4 +90,67 @@ public class PremierLeagueDAO {
 		}
 	}
 	
+	public List<Match> getMatchesMonth(Month mese) {
+		String sql = "SELECT m.*, t1.name AS nome1, t2.name AS nome2 "
+				+ "FROM matches m, teams t1, teams t2 "
+				+ "WHERE m.TeamHomeID = t1.TeamID "
+				+ "	AND m.TeamAwayID = t2.TeamID "
+				+ "	AND MONTH(m.Date) = ? "
+				+ "ORDER BY m.Date";
+		List<Match> result = new ArrayList<Match>();
+		try {
+			Connection conn = DBConnect.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, mese.getValue());
+			ResultSet res = st.executeQuery();
+			
+			while (res.next()) {
+				Match match = new Match(res.getInt("MatchID"), res.getInt("TeamHomeID"), res.getInt("TeamAwayID"), res.getInt("teamHomeFormation"), 
+							res.getInt("teamAwayFormation"),res.getInt("resultOfTeamHome"), res.getTimestamp("date").toLocalDateTime(),res.getString("nome1"),res.getString("nome2"));
+				result.add(match);
+			}
+			conn.close();
+			return result;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+	
+	public int calcolaPeso(int minutiMinimi, Month mese, Match m1, Match m2) {
+		String sql = "SELECT COUNT(*) AS pesoArco "
+				+ "FROM actions a1, actions a2 "
+				+ "WHERE a1.PlayerID = a2.PlayerID "
+				+ "	AND a1.TimePlayed >= ? "
+				+ "	AND a2.TimePlayed >= ? "
+				+ "	AND a1.MatchID = ? "
+				+ "	AND a2.MatchID = ? "
+				+ "	AND a1.MatchID IN(SELECT matches.MatchID "
+				+ "							FROM matches "
+				+ "							WHERE MONTH(DATE) = ?) "
+				+ "	AND a2.MatchID IN(SELECT matches.MatchID "
+				+ "							FROM matches "
+				+ "							WHERE MONTH(DATE) = ?)";
+		int pesoArco;
+		try {
+			Connection conn = DBConnect.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, minutiMinimi);
+			st.setInt(2, minutiMinimi);
+			st.setInt(3, m1.getMatchID());
+			st.setInt(4, m2.getMatchID());
+			st.setInt(5, mese.getValue());
+			st.setInt(6, mese.getValue());
+			ResultSet res = st.executeQuery();
+			
+			res.first();
+			pesoArco = res.getInt("pesoArco");
+			
+			conn.close();
+			return pesoArco;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return -1;
+		}
+	}
 }
