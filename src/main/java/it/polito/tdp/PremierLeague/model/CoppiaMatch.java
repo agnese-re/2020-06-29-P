@@ -38,7 +38,9 @@ public class CoppiaMatch {
 
 	@Override
 	public String toString() {
-		return m1.getTeamHomeNAME() + " vs " + m2.getTeamAwayNAME() + " " + numGiocatori;
+		return "[" + m1.getMatchID() + "] " + m1.getTeamHomeNAME() + " vs. " + m1.getTeamAwayNAME() + 
+				" - [" + m2.getMatchID() + "] " + m2.getTeamHomeNAME() + " vs. " + m2.getTeamAwayNAME() + 
+				" (" + numGiocatori + ")";
 	}
 	
 }

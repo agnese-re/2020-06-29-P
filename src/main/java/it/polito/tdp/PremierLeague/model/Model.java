@@ -4,13 +4,17 @@ import java.time.Month;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
 import org.jgrapht.Graph;
 import org.jgrapht.Graphs;
+import org.jgrapht.alg.connectivity.ConnectivityInspector;
 import org.jgrapht.graph.DefaultWeightedEdge;
 import org.jgrapht.graph.SimpleWeightedGraph;
+import org.jgrapht.traverse.BreadthFirstIterator;
+import org.jgrapht.traverse.GraphIterator;
 
 import it.polito.tdp.PremierLeague.db.PremierLeagueDAO;
 
@@ -24,9 +28,6 @@ public class Model {
 	
 	public Model() {
 		dao = new PremierLeagueDAO();
-		
-		soluzioneBest = new ArrayList<Match>();
-		pesoMassimo = 0;
 	}
 	
 	public void creaGrafo(Month mese, int minutiMinimi) {
@@ -63,8 +64,9 @@ public class Model {
 	
 	public List<CoppiaMatch> getConnessioneMax() {
 		
-		/* if(this.grafo == null)
-			throw new RuntimeException("Grafo non esistente"); */
+		if(this.grafo == null)
+			throw new RuntimeException("Grafo non esistente "
+					+ " per la combinazione di parametri 'MIN' e 'MESE'");
 		
 		int pesoMax = 0;
 		List<CoppiaMatch> coppie = new ArrayList<CoppiaMatch>();
@@ -82,30 +84,84 @@ public class Model {
 		return coppie;
 	}
 	
+	/* public List<Match> calcolaPercorso(Match matchStart, Match matchEnd) {
+		if(this.grafo == null)
+			throw new RuntimeException("Grafo non esistente "
+					+ " per la combinazione di parametri 'MIN' e 'MESE'");
+		
+		// VISITA GRAFO IN AMPIEZZA A PARTIRE DAL VERTICE DI PARTENZA 'matchStart'
+		List<Match> percorso = new ArrayList<Match>();
+		GraphIterator<Match,DefaultWeightedEdge> it = 
+				new BreadthFirstIterator<>(this.grafo,matchStart);
+		Match prossimo = null;
+		
+		while(it.hasNext())
+			prossimo = it.next();
+		return null;
+	} */
+	
+	/* *** RICORSIONE *** */
 	public List<Match> calcolaPercorso(Match matchStart, Match matchEnd) {
+		if(this.grafo == null)
+			throw new RuntimeException("Grafo non esistente "
+					+ " per la combinazione di parametri 'MIN' e 'MESE'");
+		
+		/* STAMPA COMPONENTE CONNESSA E DEI VICINI AD UN VERTICE */
+		List<Match> connessa = this.componenteConnessa(matchStart);
+		System.out.println("\n" + connessa.size() + " componenti connesse");
+		for(Match m: connessa)
+			System.out.println(m.toString());
+		List<Match> vicini = Graphs.neighborListOf(this.grafo,matchStart);
+		System.out.println("\n" + vicini.size() + " vicini");
+		for(Match m: vicini)
+			System.out.println(m.toString());
+		
+		this.soluzioneBest = new LinkedList<Match>();
+		this.pesoMassimo = 0;
+		/* CONTROLLO SE LA DESTINAZIONE E' RAGGIUNGIBILE DALLA PARTENZA */
 		List<Match> parziale = new ArrayList<Match>();
-		parziale.add(matchStart);	// vertice di partenza
-		ricorsione(parziale, matchEnd);
-		return soluzioneBest;
+		if(connessa.contains(matchEnd))	{
+			parziale.add(matchStart);	// vertice di partenza aggiunto a 'parziale'
+			ricorsione(parziale, matchEnd);
+			return soluzioneBest;
+		} else
+			return null; 
 	}
 	
 	private void ricorsione(List<Match> parziale, Match matchEnd) {
 		// casi terminali
 		if(parziale.get(parziale.size()-1).equals(matchEnd)) {	// destinazione raggiunta
+			// System.out.println("\n" + parziale);	// DEBUG
 			int pesoParziale = calcolaPesoPercorso(parziale);
+			// E' la soluzione migliore?
 			if(pesoParziale > pesoMassimo) {
 				pesoMassimo = pesoParziale;
-				soluzioneBest = parziale;
-			}
+				soluzioneBest = new LinkedList<Match>(parziale);
+			} 
+				return;		// esco da questa chiamata ricorsiva
 		}
-		// algoritmo ricorsivo
-		for(Match vicino: Graphs.neighborListOf(this.grafo, parziale.get(parziale.size()-1))) 
-			if(!vicino.getTeamHomeNAME().equals(parziale.get(parziale.size()-1).getTeamHomeNAME()) ||
-					!vicino.getTeamAwayNAME().equals(parziale.get(parziale.size()-1).getTeamAwayNAME())) {
+		// algoritmo ricorsivo con generazione di tutti i sottoproblemi
+		List<Match> vicini = Graphs.neighborListOf(this.grafo, parziale.get(parziale.size()-1));
+		for(Match vicino: vicini)
+			if( (!vicino.getTeamHomeNAME().equals(parziale.get(parziale.size()-1).getTeamHomeNAME()) ||
+					!vicino.getTeamAwayNAME().equals(parziale.get(parziale.size()-1).getTeamAwayNAME())) 
+					&& !parziale.contains(vicino) ) {
 			parziale.add(vicino);
 			ricorsione(parziale,matchEnd);
 			parziale.remove(parziale.size()-1);
 		}
+		
+		// algoritmo ricorsivo -> aggiungo o non aggiungo il vicino (ho 2 scelte: SI o NO)
+		/* for(Match vicino: vicini)
+			if( (!vicino.getTeamHomeNAME().equals(parziale.get(parziale.size()-1).getTeamHomeNAME()) ||
+					!vicino.getTeamAwayNAME().equals(parziale.get(parziale.size()-1).getTeamAwayNAME())) 
+					&& !parziale.contains(vicino) ) {
+				parziale.add(vicino);
+				ricorsione(parziale,matchEnd);
+		
+				parziale.remove(vicino);
+				ricorsione(parziale,matchEnd); 
+			} */
 	
 	}
 	
@@ -119,9 +175,16 @@ public class Model {
 			 	Il SimpleGraph elimina i self-loops e i multiple-edges */
 			DefaultWeightedEdge edge = this.grafo.getEdge(matchP, matchA);
 	
-			pesoPercorso += this.grafo.getEdgeWeight(edge);
+			pesoPercorso += (int)this.grafo.getEdgeWeight(edge);
 		}
 		
 		return pesoPercorso;
+	}
+	
+	public List<Match> componenteConnessa(Match partenza) {
+		ConnectivityInspector<Match,DefaultWeightedEdge> ci =
+				new ConnectivityInspector<>(this.grafo);
+		List<Match> connessi = new ArrayList<Match>(ci.connectedSetOf(partenza));
+		return connessi;
 	}
 }

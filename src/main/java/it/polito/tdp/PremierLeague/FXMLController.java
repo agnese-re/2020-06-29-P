@@ -24,8 +24,6 @@ public class FXMLController {
 
 	Model model;
 	
-	boolean grafoCreato = false;
-	
     @FXML // ResourceBundle that was given to the FXMLLoader
     private ResourceBundle resources;
 
@@ -59,12 +57,20 @@ public class FXMLController {
     @FXML
     void doConnessioneMassima(ActionEvent event) {
     	txtResult.clear();
-    	if(grafoCreato == true) {
+    	/* Se il grafo per quella coppia di parametri scelti dall'utente non e' ancora stato creato,
+    	 	catturo l'eccezione e avviso l'utente. Cattura eccezione RuntimeException */
+    	try {
 	    	List<CoppiaMatch> coppie = model.getConnessioneMax();
+	    	txtResult.appendText("COPPIA/E DI MATCH in cui hanno giocato per almeno MIN minuti\n"
+	    			+ " in entrambe le partite il maggior numero di giocatori: ");
+	    	txtResult.appendText("" + coppie.size() + "\n\n");
+	 
 	    	for(CoppiaMatch coppia: coppie)
 	    		txtResult.appendText(coppia.toString() + "\n");
-    	} else	// grafo non creato
-    		txtResult.setText("Grafo inesistente! Cliccare prima su 'Crea grafo'");
+    	} catch(RuntimeException rte) {	// grafo non creato
+    		txtResult.setText("Grafo inesistente per la combinazione di parametri 'MIN' e 'MESE'! "
+    				+ "\nCliccare prima su 'Crea grafo'");
+    	}
     }
 
     @FXML
@@ -73,12 +79,20 @@ public class FXMLController {
     	this.cmbM1.getItems().clear();
     	this.cmbM2.getItems().clear();
     	
+    	// 1) Controllo che il campo MIN sia stato compilato
+		if(this.txtMinuti.getText().equals("")) {
+			txtResult.setText("Devi inserire un valore nel campo 'MIN'\nNon lasciare vuoto!");
+			return;
+		}
+		
+		// 2) Controllo che il campo MIN sia stato correttamente compilato
     	int minutiMinimi;
     	try {
     		minutiMinimi = Integer.parseInt(this.txtMinuti.getText());
     		if(minutiMinimi > 90)
     			txtResult.setText("Il numero di minuti 'MIN' deve essere minore o uguale di 90");
     		else {
+    			// 3) Controllo che sia stato selezionato un MESE dal menu' a tendina
     			if(this.cmbMese.getValue() != null) {
     				model.creaGrafo(this.cmbMese.getValue(),minutiMinimi);
     				
@@ -92,7 +106,6 @@ public class FXMLController {
 	    				txtResult.appendText("# ARCHI: " + model.numArchi() + "\n");
 	    				this.cmbM1.getItems().addAll(model.getMatchCombo());
 	    				this.cmbM2.getItems().addAll(model.getMatchCombo());
-	    				this.grafoCreato = true;
     				}
     			}
     			else
@@ -106,11 +119,23 @@ public class FXMLController {
     @FXML
     void doCollegamento(ActionEvent event) {
     	txtResult.clear();
+    	// 1) Controllo se le scelte dei match m1 e m2 fatte dall'utente sono corrette
     	if(this.cmbM1.getValue() != null && this.cmbM2.getValue() != null) {
     		if(!this.cmbM1.getValue().equals(this.cmbM2.getValue())) {
-    		List<Match> percorso = model.calcolaPercorso(cmbM1.getValue(), cmbM2.getValue());
-    		for(Match match: percorso)
-    			txtResult.appendText(match.toString() + "\n");
+    			// 2) Controllo che il grafo con quei parametri sia stato creato
+    			try {
+    				List<Match> percorso = model.calcolaPercorso(cmbM1.getValue(), cmbM2.getValue());
+    				if(percorso != null) {	// la destinazione e' raggiungibile
+    					txtResult.appendText("Percorso di peso massimo: \n");
+    					for(Match match: percorso)
+    						txtResult.appendText(match.toString() + "\n");
+    				} else
+    					txtResult.setText(this.cmbM2.getValue().toString() + " non e' raggiungibile da " + 
+    							this.cmbM1.getValue().toString());
+    			} catch(RuntimeException rte) {	// grafo non creato
+    	    		txtResult.setText("Grafo inesistente per la combinazione di parametri 'MIN' e 'MESE'! "
+    	    				+ "\nCliccare prima su 'Crea grafo'");
+    			}
     		} else
     			txtResult.setText("m1 e m2 devono essere diversi!");
     	} else
