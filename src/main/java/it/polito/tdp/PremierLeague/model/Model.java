@@ -90,7 +90,7 @@ public class Model {
 			throw new RuntimeException("Grafo non esistente "
 					+ " per la combinazione di parametri 'MIN' e 'MESE'");
 		
-		this.soluzioneBest = new LinkedList<Match>();
+		this.soluzioneBest = new ArrayList<Match>();
 		this.pesoMassimo = 0;
 		
 		List<Match> parziale = new ArrayList<Match>();
@@ -107,7 +107,7 @@ public class Model {
 			// E' la soluzione migliore?
 			if(pesoParziale > pesoMassimo) {
 				pesoMassimo = pesoParziale;
-				soluzioneBest = new LinkedList<Match>(parziale);
+				soluzioneBest = new ArrayList<Match>(parziale);
 			} 
 				return;		// esco da questa chiamata ricorsiva
 		}
